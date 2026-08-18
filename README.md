@@ -9,6 +9,10 @@
 
 > Production-resilient TypeScript engine for PDF document text chunking, Google Gemini vector embeddings, and local ChromaDB HNSW semantic vector search.
 
+<p align="center">
+  <img src="docs/images/vector-engine-diagram.png" alt="Vector Engine Architecture Diagram" width="100%" />
+</p>
+
 #### Features
 
 - **Recursive Sentence-Aware Chunking**: Hierarchical text splitting (`\n\n` $\rightarrow$ `\n` $\rightarrow$ `. ` $\rightarrow$ ` `) to preserve sentence boundaries.
