@@ -1,0 +1,54 @@
+{
+  "name": "@dileepwick/vector-doc-engine",
+  "version": "1.0.0",
+  "description": "Production-resilient TypeScript engine for PDF text chunking, Gemini vector embeddings, and ChromaDB HNSW semantic search",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "ingest": "ts-node src/ingest.ts",
+    "ask": "ts-node src/ask.ts",
+    "prepare": "git config core.hooksPath .githooks || true"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DileepWick/vector-doc-engine.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "keywords": [
+    "vector-search",
+    "chromadb",
+    "gemini-api",
+    "embeddings",
+    "rag",
+    "pdf-ingestion",
+    "text-chunking",
+    "typescript",
+    "hnsw",
+    "semantic-search",
+    "ai-infrastructure"
+  ],
+  "author": "DileepWick",
+  "license": "ISC",
+  "dependencies": {
+    "@google/genai": "latest",
+    "chromadb": "^1.10.4",
+    "dotenv": "^16.4.7",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^22.13.4",
+    "@types/pdf-parse": "^1.1.4",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3"
+  }
+}
