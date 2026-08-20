@@ -1,10 +1,8 @@
 # Failure Mode Audit & System Hardening
 
-> **Abstract**: Technical analysis of failure modes identified in naive vector search implementations and the production hardening patterns applied to resolve them.
+Technical analysis of failure modes identified in naive vector search implementations and the production hardening patterns applied to resolve them.
 
----
-
-## 1. System Vulnerability Matrix
+## System Vulnerability Matrix
 
 ```mermaid
 flowchart TD
@@ -21,13 +19,12 @@ flowchart TD
     end
 ```
 
----
-
-## 2. Vulnerability Analysis & Hardening Implementation
+## Vulnerability Analysis & Hardening Implementation
 
 ### Vulnerability 1: Destructive Upfront Collection Deletion
-- **Issue**: Executing `chroma.deleteCollection()` prior to ingestion starting. If vector generation fails mid-stream (e.g., at chunk 99/100 due to API error), existing indexed data is lost.
-- **Hardening Strategy**: Non-destructive **Atomic Streaming Upserts** (`collection.upsert()`) namespaced by document ID. Live data remains untouched until new ingestion completes cleanly.
+
+- **Issue**: Executing `chroma.deleteCollection()` prior to ingestion starting. If vector generation fails mid-stream, existing indexed data is lost.
+- **Hardening Strategy**: Non-destructive atomic upserts (`collection.upsert()`) namespaced by document identifier. Live data remains untouched until new ingestion completes cleanly.
 
 ```typescript
 // Atomic Namespace & Upsert Pattern (ingest.ts)
@@ -37,11 +34,10 @@ const ids = batchIndices.map((idx) => `${sanitizeId}_chunk_${idx}`);
 await collection.upsert({ ids, embeddings: batchEmbeddings, metadatas, documents });
 ```
 
----
-
 ### Vulnerability 2: API Rate Limits and Transient Connection Failures
+
 - **Issue**: Executing un-retried API calls inside a tight loop. Large documents trigger rate limits (`HTTP 429`) or transient timeouts (`HTTP 503 / ETIMEDOUT`).
-- **Hardening Strategy**: **Exponential Backoff with Randomized Delay Jitter** ($1\text{s}, 2\text{s}, 4\text{s}, 8\text{s} + \text{jitter}$).
+- **Hardening Strategy**: Exponential backoff with randomized delay retries (1s, 2s, 4s, 8s plus random jitter).
 
 ```typescript
 // Exponential Backoff Loop (ingest.ts / ask.ts)
@@ -52,37 +48,32 @@ if (attempt < maxRetries && isTransient) {
 }
 ```
 
----
+### Vulnerability 3: Unbounded Memory Allocation (Heap Out Of Memory)
 
-### Vulnerability 3: Unbounded Memory Allocation (Heap OOM)
 - **Issue**: Accumulating all vectors, metadata objects, and strings in memory arrays before database insertion.
-- **Hardening Strategy**: **$O(1)$ Memory Streaming Batch Flushes** (`batchSize = 10`).
+- **Hardening Strategy**: Streaming batch flushes (`batchSize = 10`) to keep active memory bounded.
 
 ```mermaid
 flowchart LR
     A[Read Batch] --> B[Embed Batch] --> C[Upsert to DB] --> D[Flush Batch RAM] --> E[Next Batch]
 ```
 
----
-
 ### Vulnerability 4: Character-Level Boundary Severing
-- **Issue**: Naive character slicing (`slice(800)`) truncates words and sentence structures at arbitrary boundaries.
-- **Hardening Strategy**: **Recursive Sentence-Aware Chunking** (`recursiveChunkText()`), splitting hierarchically on `\n\n` $\rightarrow$ `\n` $\rightarrow$ `. ` $\rightarrow$ ` `.
 
----
+- **Issue**: Naive character slicing truncates words and sentence structures at arbitrary boundaries.
+- **Hardening Strategy**: Recursive sentence-aware chunking (`recursiveChunkText()`), splitting hierarchically on paragraphs, lines, periods, and spaces.
 
 ### Vulnerability 5: Irrelevant Search Noise (Off-Topic Queries)
-- **Issue**: Vector databases return top $K$ results regardless of spatial distance.
-- **Hardening Strategy**: **Relevance Guardrail Thresholding** (`MIN_SIMILARITY_THRESHOLD = 0.35`). Queries returning similarity scores below 0.35 are rejected.
 
----
+- **Issue**: Vector databases return top matches regardless of spatial distance.
+- **Hardening Strategy**: Relevance threshold filtering (`MIN_SIMILARITY_THRESHOLD = 0.35`). Queries returning similarity scores below the threshold are filtered out.
 
-## 3. System Comparison
+## System Comparison
 
 | System Layer | Naive Implementation | Hardened Implementation | Impact |
 | :--- | :--- | :--- | :--- |
-| **API Layer** | Single call (crashes on 429) | Exponential Backoff + Jitter Retry | Elimination of rate-limit crashes |
+| **API Layer** | Single call (crashes on 429) | Exponential Backoff with Jitter | Prevents rate-limit crashes |
 | **Database Layer** | Destructive upfront wipe | Non-destructive Atomic Upserts | Zero risk of data loss |
-| **Memory Management** | $O(N)$ RAM Array Allocation | $O(1)$ Streaming Batch Flushes | Elimination of heap OOM crashes |
-| **Text Processing** | Character slicing | Recursive Sentence-Aware Splitting | Context preservation |
-| **Search Guardrails** | Unfiltered Top K | Threshold Filter (`>= 0.35`) | Rejection of off-topic noise |
+| **Memory Management** | Full in-memory buffer | Streaming Batch Flushes | Keeps heap memory stable |
+| **Text Processing** | Hard character slicing | Recursive Sentence-Aware Splitting | Preserves semantic context |
+| **Search Guardrails** | Unfiltered Top K | Similarity Threshold Filter | Eliminates off-topic noise |

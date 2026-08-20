@@ -1,28 +1,38 @@
-### vector-doc-engine
+<p align="center">
+  <img src="docs/images/logo.png" width="96" alt="vector-doc-engine logo" />
+</p>
 
-[![npm version](https://img.shields.io/npm/v/@dileepwick/vector-doc-engine.svg?style=flat-square&color=black)](https://github.com/DileepWick/vector-doc-engine)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-black.svg?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-1.10-black.svg?style=flat-square)](https://www.trychroma.com/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini-API-black.svg?style=flat-square&logo=google)](https://ai.google.dev/)
-[![CI Pipeline](https://img.shields.io/github/actions/workflow/status/DileepWick/vector-doc-engine/ci.yml?branch=main&style=flat-square&label=CI&color=black)](https://github.com/DileepWick/vector-doc-engine/actions)
-[![License](https://img.shields.io/badge/License-ISC-black.svg?style=flat-square)](LICENSE)
+<h2 align="center">vector-doc-engine</h2>
 
-> Production-resilient TypeScript engine for PDF document text chunking, Google Gemini vector embeddings, and local ChromaDB HNSW semantic vector search.
+<p align="center">
+  <a href="https://github.com/DileepWick/vector-doc-engine"><img src="https://img.shields.io/npm/v/@dileepwick/vector-doc-engine.svg?style=flat-square&color=black" alt="npm version" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.7-black.svg?style=flat-square&logo=typescript" alt="TypeScript" /></a>
+  <a href="https://www.trychroma.com/"><img src="https://img.shields.io/badge/ChromaDB-1.10-black.svg?style=flat-square" alt="ChromaDB" /></a>
+  <a href="https://ai.google.dev/"><img src="https://img.shields.io/badge/Google_Gemini-API-black.svg?style=flat-square&logo=google" alt="Google Gemini" /></a>
+  <a href="https://github.com/DileepWick/vector-doc-engine/actions"><img src="https://img.shields.io/github/actions/workflow/status/DileepWick/vector-doc-engine/ci.yml?branch=main&style=flat-square&label=CI&color=black" alt="CI Pipeline" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-ISC-black.svg?style=flat-square" alt="License" /></a>
+</p>
+
+> Production-resilient TypeScript engine for PDF text chunking, Google Gemini vector embeddings, and local ChromaDB semantic vector search.
 
 <p align="center">
   <img src="docs/images/vector-engine-diagram.png" alt="Vector Engine Architecture Diagram" width="100%" />
 </p>
 
-#### Features
+## Overview
 
-- **Recursive Sentence-Aware Chunking**: Hierarchical text splitting (`\n\n` $\rightarrow$ `\n` $\rightarrow$ `. ` $\rightarrow$ ` `) to preserve sentence boundaries.
-- **Resilient API Processing**: Exponential backoff with delay jitter retries to handle Gemini API rate limits (`HTTP 429`) and network dropouts.
-- **Memory Efficient Ingestion**: $O(1)$ streaming batch flushes to prevent heap memory exhaustion on large documents.
-- **Relevance Guardrails**: Bounded similarity scoring with minimum threshold filtering.
+`vector-doc-engine` is a lightweight library and CLI tool designed for document processing pipelines. It splits documents cleanly at natural text boundaries, generates embeddings with Google Gemini, and indexes them into ChromaDB for fast similarity retrieval.
 
-#### Installation
+## Features
 
-Install as a dependency in your Node.js or TypeScript project:
+- **Recursive Text Chunking**: Splits paragraphs, lines, and sentences cleanly before applying character limits.
+- **Resilient API Layer**: Uses exponential backoff with delay retries to handle rate limits and temporary network drops.
+- **Streaming Batch Processing**: Processes chunks in steady batches to keep memory usage minimal on large documents.
+- **Similarity Threshold Filtering**: Filters search results against a similarity floor to exclude off-topic matches.
+
+## Installation
+
+Install as a project dependency:
 
 ```bash
 npm install git+https://github.com/DileepWick/vector-doc-engine.git
@@ -34,9 +44,9 @@ Or via GitHub Packages registry:
 npm install @dileepwick/vector-doc-engine
 ```
 
-#### Quick Start
+## Quick Start
 
-##### 1. Environment Configuration
+### 1. Environment Configuration
 
 Create a `.env` file in your root directory:
 
@@ -46,7 +56,7 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_EMBED_MODEL=gemini-embedding-2-preview
 ```
 
-##### 2. Infrastructure Setup
+### 2. Infrastructure Setup
 
 Start a local ChromaDB instance:
 
@@ -54,12 +64,12 @@ Start a local ChromaDB instance:
 docker run -p 8000:8000 chromadb/chroma
 ```
 
-##### 3. Programmatic Usage
+### 3. Programmatic Usage
 
 <details>
-<summary><b>View Programmatic Code Examples</b></summary>
+<summary><b>View Code Examples</b></summary>
 
-<br>
+<br />
 
 **Ingest PDF Document**
 
@@ -91,31 +101,34 @@ matches.forEach((match, idx) => {
 
 </details>
 
-#### CLI Usage
+## CLI Execution
 
 <details>
-<summary><b>View CLI Execution Commands</b></summary>
+<summary><b>View CLI Commands</b></summary>
 
-<br>
+<br />
 
 **Build Package**
+
 ```bash
 npm run build
 ```
 
 **Ingest Document via CLI**
+
 ```bash
 npx ts-node src/ingest.ts sem-reg.pdf
 ```
 
 **Query Vector Search via CLI**
+
 ```bash
 npx ts-node src/ask.ts "What are the key takeaways?"
 ```
 
 </details>
 
-#### Repository Structure
+## Project Structure
 
 ```text
 vector-doc-engine/
@@ -123,17 +136,16 @@ vector-doc-engine/
 │   ├── index.ts               # Public API exports
 │   ├── ingest.ts              # Document ingestion API
 │   ├── ask.ts                 # Vector search query API
-│   ├── chunker.ts             # Recursive text chunking utility
+│   ├── chunker.ts             # Text chunking utility
 │   └── embedder.ts            # Gemini API embedder with retries
 ├── data/documents/            # Default document storage
-├── dist/                      # Built JavaScript binaries & declaration files
-├── docs/                      # Technical documentation & failure mode audits
-└── tests/                     # Unit test suites (Jest)
+├── dist/                      # Built JavaScript binaries & declarations
+├── docs/                      # Technical documentation & guides
+└── tests/                     # Unit test suites
 ```
 
-#### Documentation Links
+## Documentation
 
-- [Architecture & Technical Foundation](docs/architecture-and-learnings.md)
-- [Failure Mode Audit & System Hardening](docs/failure-modes-and-audit.md)
-- [Publishing to GitHub Packages](docs/publishing-github-package.md)
-- [Field Notes: Why Naive Text Chunking Breaks Vector Search](docs/articles/01-text-chunking-deep-dive.md)
+- [Architecture & Foundations](docs/architecture-and-learnings.md)
+- [System Hardening & Audit](docs/failure-modes-and-audit.md)
+- [GitHub Packages Publishing](docs/publishing-github-package.md)

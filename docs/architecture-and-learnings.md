@@ -1,42 +1,31 @@
 # Architecture & Technical Foundation
 
-> **Abstract**: Technical reference detailing vector representations, tokenization mechanics, text chunking algorithms, distance metrics, and graph-based HNSW indexing.
+Technical reference detailing vector representations, tokenization mechanics, text chunking algorithms, distance metrics, and graph-based HNSW indexing.
 
----
-
-## 1. Tokenization vs. Embeddings
+## Tokenization and Embeddings
 
 ```mermaid
 flowchart LR
-    A["Raw Text Input"] -->|Tokenization| B["Token IDs (Integers)"]
-    B -->|Embedding Model| C["Dense Vector (Float Array)"]
+    A["Raw Text Input"] -->|Tokenization| B["Token IDs"]
+    B -->|Embedding Model| C["Dense Vector"]
 ```
 
 ### Representation Analysis
 
 | Attribute | Tokenization (Lexical) | Embedding (Semantic) |
 | :--- | :--- | :--- |
-| **Output Format** | Discrete Integers (`int`) | Continuous Vectors (`float[]`) |
+| **Output Format** | Discrete Integers | Continuous Floating-Point Arrays |
 | **Representation** | Vocabulary index lookup | High-dimensional spatial coordinates |
-| **Example Output** | `"cat"` $\rightarrow$ `9243` | `"cat"` $\rightarrow$ `[0.12, -0.45, 0.89, -0.11, ...]` |
-| **Vector Arithmetic** | Invalid | Valid (`King - Man + Woman ≈ Queen`) |
-| **Reversibility** | Deterministic (`9243` $\rightarrow$ `"cat"`) | Lossy / One-way projection |
-| **System Role** | Tokenizer Preprocessing | Spatial Indexing & Nearest Neighbor Search |
+| **Example Output** | `"cat"` maps to integer ID `9243` | `"cat"` maps to continuous spatial vector |
+| **Vector Arithmetic** | Not applicable | Valid semantic vector operations |
+| **Reversibility** | Deterministic lookup | Lossy spatial projection |
+| **System Role** | Text preprocessing | Spatial Indexing & Nearest Neighbor Search |
 
-> [!NOTE]
-> Tokenization provides discrete integer identifiers for vocabulary mapping. Embeddings project those identifiers into a high-dimensional vector space where distance corresponds to semantic similarity.
+> Tokenization provides discrete integer identifiers for vocabulary mapping. Embeddings project those identifiers into a high-dimensional vector space where physical proximity corresponds to conceptual similarity.
 
----
+## Text Chunking Strategies
 
-## 2. Text Chunking Strategies
-
-Natural language flows continuously across documents, but embedding models operate on fixed token context windows. Chunking strategy directly impacts vector retrieval recall.
-
-```text
-Full Text: "SLIIT reserves the right to decline or de-register students who have not completed fee payments."
-            |----------------------------------------| (Chunk 0: Cuts off mid-phrase at 'decline or d')
-                              |----------------------------------------| (Chunk 1: Intact 'decline or de-register')
-```
+Natural language flows continuously across documents, but embedding models operate on fixed token context windows. Chunking strategy directly impacts vector retrieval accuracy and recall.
 
 ### Strategy Comparison
 
@@ -45,15 +34,13 @@ flowchart TD
     A[Raw Document Text] --> B{Chunking Strategy}
     B -->|Fixed Character Slicing| C["Cuts mid-word and mid-sentence"]
     B -->|Sliding Window Overlap| D["Overlap preserves boundary context"]
-    B -->|Recursive Sentence-Aware| E["Splits on \\n\\n -> \\n -> . -> space (Optimal)"]
+    B -->|Recursive Sentence-Aware| E["Splits hierarchically on paragraphs, lines, and sentences"]
 ```
 
-1. **Sliding Window Overlap**: Content severed at the boundary of Chunk $N$ is preserved intact within Chunk $N+1$.
-2. **Recursive Splitting**: Hierarchically splits on structural delimiters (`\n\n` $\rightarrow$ `\n` $\rightarrow$ `. ` $\rightarrow$ ` `) before falling back to character limits, preserving paragraphs and sentence structures.
+1. **Sliding Window Overlap**: Content severed at the boundary of a chunk is preserved intact within the subsequent chunk.
+2. **Recursive Splitting**: Hierarchically splits on natural text delimiters (paragraphs, newlines, sentence periods, and spaces) before applying character limits.
 
----
-
-## 3. Vector Distance Metrics
+## Vector Distance Metrics
 
 Vector databases calculate spatial proximity using mathematical distance metrics:
 
@@ -62,41 +49,22 @@ flowchart TD
     A[ChromaDB Distance Metric] --> B["Cosine Distance (Angular)"]
     A --> C["Euclidean / L2 Distance (Straight Line)"]
     A --> D["Inner Product (Dot Product)"]
-    
-    B --> B1["Range: [0.0, 2.0] | Similarity = 1 - Distance"]
-    C --> C1["Range: [0.0, Infinity) | Requires L2 Normalization"]
-    D --> D1["Range: (-Infinity, +Infinity) | Unbounded"]
 ```
 
-### Metric Formulations
+### Metric Characteristics
 
-- **Cosine Distance** (`"hnsw:space": "cosine"`):
-  $$\text{Cosine Similarity} = \max\left(0, \min\left(1, 1 - \text{Cosine Distance}\right)\right)$$
+- **Cosine Distance**: Measures the directional angle between vectors, producing normalized similarity scores between 0.0 and 1.0.
+- **Euclidean / L2 Distance**: Measures straight-line distance in vector space. Requires vector length normalization for consistent scoring.
+- **Inner Product**: Measures spatial alignment and magnitude across vector dimensions.
 
-- **Euclidean / L2 Distance** (`"hnsw:space": "l2"`):
-  $$d = \sqrt{\sum_{i=1}^n (x_i - y_i)^2}$$
+> Computing `1 - distance` to calculate similarity is only valid when the collection is configured for Cosine Distance. For Euclidean or Inner Product spaces, other normalization rules apply.
 
-> [!WARNING]
-> Computing `1 - distance` is only mathematically valid when the vector space is explicitly configured for Cosine Distance. For Euclidean or Inner Product spaces, `1 - distance` produces invalid or negative scores.
+## HNSW Graph Indexing Mechanics
 
----
+To search vector collections efficiently without scanning every document linearly, ChromaDB constructs a Hierarchical Navigable Small World (HNSW) graph index.
 
-## 4. HNSW Indexing Mechanics
+### Graph Layer Traversal
 
-To search large vector collections without performing $O(N)$ brute-force comparisons, ChromaDB constructs a **Hierarchical Navigable Small World (HNSW)** graph index.
-
-### Multi-Layer Graph Architecture
-
-```text
-Layer 2 (Express Layer):    [ Node A ] ──────────────────────────────────────────> [ Node Z ]
-                                │                                                       │
-                                ▼                                                       ▼
-Layer 1 (Regional Layer):   [ Node A ] ──────────> [ Node K ] ──────────> [ Node P ] ───> [ Node Z ]
-                                │                      │                      │          │
-                                ▼                      ▼                      ▼          ▼
-Layer 0 (Base Layer):       [Node A]--[Node B]--...--[Node K]--[Node L]--...--[Node P]--[Node Z]
-```
-
-1. **Top Layer**: Sparse long-distance links for rapid spatial traversal.
-2. **Base Layer**: Dense local neighborhood links containing all indexed vectors.
-3. **Query Latency**: Achieves $O(\log N)$ logarithmic search complexity.
+- **Express Top Layers**: Sparse, long-range connections for fast spatial traversal across distant regions of the vector space.
+- **Base Layer**: Dense local neighborhood connections containing all indexed vectors.
+- **Search Efficiency**: Enables logarithmic search scalability as dataset sizes grow.
